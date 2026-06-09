@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Londres 2026 - Guía de Turismo</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<style>
+:root{
+  --tube-red:#E30613;
+  --tube-blue:#0039A6;
+  --tube-yellow:#FFD300;
+  --urban-gray:#2D2D2D;
+  --urban-light:#F5F5F7;
+  --cab-red:#C8102E;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--urban-light);color:#1a1a1a}
+h1,h2,.display{font-family:'Fraunces',serif}
+.glass{backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.scrollbar-thin::-webkit-scrollbar{height:6px;width:6px}
+.scrollbar-thin::-webkit-scrollbar-thumb{background:#c7c7c7;border-radius:999px}
+.prose p{line-height:1.7}
+.tag{border:1px solid rgba(0,0,0,.08)}
+.focus-ring:focus{outline:2px solid var(--tube-blue);outline-offset:2px}
+.leaflet-container{border-radius:1.5rem;z-index:0}
+.shimmer{background:linear-gradient(110deg,#f0f0f0 8%,#e4e4e4 18%,#f0f0f0 33%);background-size:200% 100%;animation:shimmer 1.5s linear infinite}
+@keyframes shimmer{to{background-position-x:-200%}}
+.fade-in{animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.filters-transition{transition:opacity .2s ease}
+.toast{animation:slideIn .3s ease,fadeOut .3s ease 2.5s forwards}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes fadeOut{to{opacity:0;transform:translateY(-10px)}}
+.leaflet-control-layers{background:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.leaflet-bar a{background-color:#f0f0f0;border:none;border-radius:4px;}
+.leaflet-bar a:hover{background-color:#ddd;}
+.leaflet-routing-container{font-size:13px;}
+.leaflet-routing-container h2{display:none;}
+.map-category-btn.active{background-color:var(--tube-red) !important;border-color:var(--tube-red) !important;color:white !important}
+</style>
+</head>
+<body class="antialiased">
+<!-- Toast Container -->
+<div id="toasts" class="fixed top-20 right-4 z-[60] space-y-2"></div>
+
+<!-- Top Bar -->
+<div class="sticky top-0 z-50 bg-[#0B0B0C]/95 text-white border-b border-white/10 glass">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      <a href="#inicio" class="flex items-center gap-3">
+        <span class="w-9 h-9 rounded-full bg-[var(--tube-red)] grid place-items-center font-bold text-white">L</span>
+        <div class="leading-tight">
+          <div class="font-bold tracking-tight">LONDRES 2026</div>
+          <div class="text-[11px] uppercase tracking-widest text-white/60">Guía Oficial de Turismo</div>
+        </div>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-sm">
+        <a href="#alojamiento" class="hover:text-white/80">Alojamiento</a>
+        <a href="#lugares" class="hover:text-white/80">Lugares</a>
+        <a href="#gastronomia" class="hover:text-white/80">Gastronomía</a>
+        <a href="#actividades" class="hover:text-white/80">Ocio</a>
+        <a href="#viaje" class="hover:text-white/80">Mi Viaje</a>
+        <a href="#transporte" class="hover:text-white/80">Transporte</a>
+        <a href="#info" class="hover:text-white/80">Práctico</a>
+      </nav>
+      <div class="flex items-center gap-2">
+        <button id="currencyToggle" class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-semibold hover:bg-white/20">£ / €</button>
+        <button id="menuBtn" class="md:hidden p-2 rounded-lg bg-white/10" aria-label="Abrir menú">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div id="mobileMenu" class="md:hidden hidden border-t border-white/10">
+    <div class="px-4 py-3 grid gap-2 text-sm">
+      <a href="#alojamiento" class="py-2 mobile-link">Alojamiento</a>
+      <a href="#lugares" class="py-2 mobile-link">Lugares</a>
+      <a href="#gastronomia" class="py-2 mobile-link">Gastronomía</a>
+      <a href="#actividades" class="py-2 mobile-link">Ocio</a>
+      <a href="#viaje" class="py-2 mobile-link">Mi Viaje</a>
+      <a href="#transporte" class="py-2 mobile-link">Transporte</a>
+      <a href="#info" class="py-2 mobile-link">Práctico</a>
+    </div>
+  </div>
+</div>
+
+<!-- Hero -->
+<header id="inicio" class="relative overflow-hidden">
+  <div class="absolute inset-0">
+    <img src="https://images.pexels.com/photos/30624873/pexels-photo-30624873.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200" alt="Londres" class="w-full h-full object-cover" loading="eager">
+    <div class="absolute inset-0 bg-gradient-to-t from-[#0B0B0C] via-[#0B0B0C]/70 to-[#0B0B0C]/30"></div>
+    <div class="absolute inset-0 opacity-30 mix-blend-overlay" style="background:radial-gradient(circle at 20% 20%,var(--tube-red),transparent 40%),radial-gradient(circle at 80% 30%,var(--tube-blue),transparent 40%)"></div>
+  </div>
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+    <div class="max-w-3xl text-white">
+      <span class="inline-flex items-center gap-2 text-xs uppercase tracking-widest bg-white/10 border border-white/20 rounded-full px-3 py-1 mb-5">Tradición y Modernidad • 2026</span>
+      <h1 class="display text-5xl lg:text-7xl font-bold leading-[0.9]">Londres te espera con historia viva y futuro brillante</h1>
+      <p class="mt-6 text-lg text-white/80 max-w-2xl">Una ciudad donde las cabinas rojas conviven con rascacielos de cristal, donde el té de las cinco se mezcla con mercados de comida global. Esta guía reúne lo esencial para explorar la capital británica como un local.</p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="#lugares" class="px-5 py-3 rounded-full bg-[var(--tube-red)] text-white font-semibold hover:opacity-90 shadow-lg shadow-red-900/30">Explorar imprescindibles</a>
+        <a href="#mapa" class="px-5 py-3 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 backdrop-blur">Ver mapa interactivo</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Smart Filters -->
+<section class="sticky top-16 z-40 bg-white/90 glass border-b border-black/5 filters-transition">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <div class="flex flex-col lg:flex-row gap-3 items-stretch">
+      <div class="flex-1 flex items-center gap-3 bg-white rounded-2xl border border-black/10 px-4 py-2 shadow-sm">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-500"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="searchInput" type="search" placeholder="Busca Big Ben, pubs, museos, mercados..." class="w-full outline-none bg-transparent placeholder-gray-500 text-[15px]">
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <select id="filterZona" class="focus-ring rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm">
+          <option value="">Zona</option>
+          <option>Westminster</option>
+          <option>Soho</option>
+          <option>Shoreditch</option>
+          <option>Kensington</option>
+          <option>Camden</option>
+          <option>South Bank</option>
+        </select>
+        <select id="filterPresupuesto" class="focus-ring rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm">
+          <option value="">Presupuesto</option>
+          <option value="bajo">Bajo</option>
+          <option value="medio">Medio</option>
+          <option value="alto">Alto</option>
+        </select>
+        <select id="filterTipo" class="focus-ring rounded-2xl border border-black/10 bg-white px-3 py-2.5 text-sm">
+          <option value="">Tipo de interés</option>
+          <option>Cultura</option>
+          <option>Gastronomía</option>
+          <option>Ocio</option>
+          <option>Compras</option>
+          <option>Naturaleza</option>
+          <option>Alojamiento</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</section>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-20">
+
+<!-- Alojamiento -->
+<section id="alojamiento" class="scroll-mt-32">
+  <div class="flex items-end justify-between gap-6 mb-6">
+    <div>
+      <h2 class="display text-4xl font-bold">Alojamiento</h2>
+      <p class="mt-2 text-gray-600 max-w-2xl">Elige tu base según el ritmo que busques: la elegancia clásica de Westminster, la energía creativa de Shoreditch, la vida nocturna de Soho o la tranquilidad verde de Kensington.</p>
+    </div>
+    <div class="hidden sm:flex items-center gap-2 text-xs">
+      <span id="currencyLabel" class="px-2 py-1 rounded-full bg-gray-100 border">£</span>
+    </div>
+  </div>
+  <div id="alojamientoGrid" class="grid md:grid-cols-2 lg:grid-cols-4 gap-5"></div>
+</section>
+
+<!-- Lugares -->
+<section id="lugares" class="scroll-mt-32">
+  <div class="mb-6">
+    <h2 class="display text-4xl font-bold">Lugares Emblemáticos</h2>
+    <p class="mt-2 text-gray-600 max-w-2xl">Imprescindibles que cuentan la historia de un imperio y la reinvención constante de una metrópoli global.</p>
+  </div>
+  <div id="lugaresGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+</section>
+
+<!-- Gastronomía -->
+<section id="gastronomia" class="scroll-mt-32">
+  <div class="grid lg:grid-cols-5 gap-10 items-start">
+    <div class="lg:col-span-2">
+      <h2 class="display text-4xl font-bold">Gastronomía</h2>
+      <p class="mt-3 text-gray-600">Desde el clásico fish & chips en un pub centenario hasta menús degustación con estrella Michelin y puestos de comida callejera en Borough Market. Londres es hoy una de las capitales culinarias del mundo.</p>
+      <div class="mt-6 rounded-3xl overflow-hidden border border-black/10 shadow-sm">
+        <img src="https://images.pexels.com/photos/24589254/pexels-photo-24589254.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200" alt="Mercado" class="w-full h-64 object-cover" loading="lazy">
+      </div>
+      <div class="mt-4 grid grid-cols-3 gap-3">
+        <img class="h-24 w-full object-cover rounded-2xl" src="https://images.pexels.com/photos/31533630/pexels-photo-31533630.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200" alt="pub" loading="lazy">
+        <img class="h-24 w-full object-cover rounded-2xl" src="https://images.pexels.com/photos/31131430/pexels-photo-31131430.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200" alt="street" loading="lazy">
+        <img class="h-24 w-full object-cover rounded-2xl" src="https://images.pexels.com/photos/9668165/pexels-photo-9668165.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200" alt="food" loading="lazy">
+      </div>
+    </div>
+    <div id="gastroGrid" class="lg:col-span-3 grid sm:grid-cols-2 gap-5"></div>
+  </div>
+</section>
+
+<!-- Actividades -->
+<section id="actividades" class="scroll-mt-32">
+  <div class="mb-6">
+    <h2 class="display text-4xl font-bold">Actividades y Ocio</h2>
+    <p class="mt-2 text-gray-600 max-w-2xl">Teatro en el West End, compras icónicas en Oxford Street, paseos por parques reales y una vida nocturna que nunca duerme.</p>
+  </div>
+  <div id="ocioGrid" class="grid md:grid-cols-2 lg:grid-cols-4 gap-5"></div>
+</section>
+
+<!-- Mi Viaje Tracker -->
+<section id="viaje" class="scroll-mt-32">
+  <div class="rounded-[2rem] border border-black/10 bg-white p-8 lg:p-12 shadow-sm">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
+      <div>
+        <h2 class="display text-4xl font-bold">Seguimiento de tu viaje</h2>
+        <p class="mt-2 text-gray-600 max-w-2xl">Marca los lugares que has visitado, añade una valoración y notas personales. Todo se guarda automáticamente en tu navegador.</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="exportBtn" class="px-4 py-2 rounded-full border text-sm font-semibold hover:bg-gray-50">Exportar</button>
+        <button id="clearBtn" class="px-4 py-2 rounded-full bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100">Borrar datos</button>
+      </div>
+    </div>
+    <div class="grid lg:grid-cols-3 gap-8">
+      <div class="lg:col-span-2">
+        <div id="trackerList" class="space-y-3 max-h-[520px] overflow-y-auto pr-2 scrollbar-thin"></div>
+        <div id="noResults" class="hidden p-8 text-center border border-dashed rounded-3xl text-gray-500">
+          No se encontraron resultados con los filtros actuales.
+        </div>
+      </div>
+      <div class="lg:col-span-1">
+        <div class="sticky top-28 p-6 rounded-3xl bg-gradient-to-br from-[#0B0B0C] to-[#1a1a1a] text-white">
+          <h3 class="font-bold text-xl">Progreso</h3>
+          <div class="mt-4">
+            <div class="flex justify-between text-sm text-white/70 mb-1"><span>Visitados</span><span id="progressCount">0/0</span></div>
+            <div class="h-2 bg-white/10 rounded-full overflow-hidden"><div id="progressBar" class="h-full bg-[var(--tube-red)] w-0 transition-all"></div></div>
+          </div>
+          <div class="mt-6 space-y-3 text-sm">
+            <div class="flex items-center justify-between"><span>Valoración media</span><span id="avgRating" class="font-bold text-lg">-</span></div>
+            <div class="flex items-center justify-between"><span>Favoritos</span><span id="favCount" class="font-bold">0</span></div>
+          </div>
+          <p class="mt-6 text-xs text-white/50">Tus datos se guardan localmente. No se comparten con nadie.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Transporte -->
+<section id="transporte" class="scroll-mt-32">
+  <div class="grid lg:grid-cols-2 gap-10 items-center">
+    <div>
+      <h2 class="display text-4xl font-bold">Transporte</h2>
+      <p class="mt-3 text-gray-600">Moverse por Londres es parte de la experiencia. El Tube, los buses rojos de dos pisos y los paseos por el Támesis conectan cada rincón de la ciudad.</p>
+      <div class="mt-6 space-y-4">
+        <div class="p-5 rounded-2xl bg-white border border-black/10 shadow-sm">
+          <h3 class="font-semibold flex items-center gap-2"><span class="w-8 h-8 rounded-full bg-[var(--tube-blue)] text-white grid place-items-center text-sm">O</span> Oyster Card & Contactless</h3>
+          <p class="text-sm text-gray-600 mt-2">Usa tu tarjeta contactless o móvil para pagar. El sistema aplica tope diario automático. La Oyster sigue disponible para visitantes.</p>
+          <button class="escucharBtn mt-3 text-xs uppercase tracking-wide text-[var(--tube-blue)] font-semibold">Escuchar</button>
+        </div>
+        <div class="p-5 rounded-2xl bg-white border border-black/10 shadow-sm">
+          <h3 class="font-semibold flex items-center gap-2"><span class="w-8 h-8 rounded-full bg-[var(--tube-red)] text-white grid place-items-center text-sm">T</span> The Tube</h3>
+          <p class="text-sm text-gray-600 mt-2">11 líneas, servicio desde las 5:00 hasta medianoche. Líneas Night Tube los fines de semana en rutas clave. Evita hora punta 7:30-9:30 y 17:00-19:00.</p>
+          <button class="escucharBtn mt-3 text-xs uppercase tracking-wide text-[var(--tube-blue)] font-semibold">Escuchar</button>
+        </div>
+        <div class="p-5 rounded-2xl bg-white border border-black/10 shadow-sm">
+          <h3 class="font-semibold">Consejo 2026</h3>
+          <p class="text-sm text-gray-600 mt-2">Descarga la app TfL Go para rutas en tiempo real, accesibilidad en estaciones y alertas de incidencias.</p>
+        </div>
+      </div>
+    </div>
+    <div class="rounded-3xl overflow-hidden border border-black/10 shadow-sm">
+      <img src="https://images.pexels.com/photos/30624832/pexels-photo-30624832.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200" alt="Tube" class="w-full h-[520px] object-cover" loading="lazy">
+    </div>
+  </div>
+</section>
+
+<!-- Mapa -->
+<section id="mapa" class="scroll-mt-32">
+  <div class="rounded-[2rem] border border-black/10 bg-gradient-to-br from-white to-gray-50 p-2">
+    <div class="rounded-[1.5rem] bg-[#0B0B0C] text-white p-8 lg:p-12">
+      <div class="grid lg:grid-cols-2 gap-10 items-center">
+        <div>
+          <h2 class="display text-4xl font-bold">Mapa Interactivo</h2>
+          <p class="mt-3 text-white/70">Explora todos los puntos de interés. Filtra por categoría, ve rutas seguras a pie por calles reales y evita zonas conflictivas.</p>
+          <div class="mt-6 space-y-4">
+            <div class="flex flex-wrap gap-2">
+              <button class="map-category-btn px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium hover:bg-white/20 active" data-category="todos">Todos</button>
+              <button class="map-category-btn px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium hover:bg-white/20" data-category="Cultura">Cultura</button>
+              <button class="map-category-btn px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium hover:bg-white/20" data-category="Gastronomía">Gastronomía</button>
+              <button class="map-category-btn px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium hover:bg-white/20" data-category="Ocio">Ocio</button>
+              <button class="map-category-btn px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium hover:bg-white/20" data-category="Alojamiento">Alojamiento</button>
+              <button class="map-category-btn px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium hover:bg-white/20" data-category="Compras">Compras</button>
+              <button class="map-category-btn px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium hover:bg-white/20" data-category="Naturaleza">Naturaleza</button>
+            </div>
+            <div class="flex gap-3">
+              <button id="fitMap" class="px-4 py-2 rounded-full bg-white/10 border border-white/20 text-sm hover:bg-white/20">Centrar todo</button>
+              <button id="locateMe" class="px-4 py-2 rounded-full bg-[var(--tube-red)] text-sm font-semibold">Mi ubicación</button>
+              <button id="routeWalking" class="px-4 py-2 rounded-full bg-green-600/20 border border-green-600/30 text-sm font-semibold hover:bg-green-600/30">Ruta a pie</button>
+              <button id="clearRoute" class="px-4 py-2 rounded-full bg-white/10 border border-white/20 text-sm hover:bg-white/20">✕ Quitar ruta</button>
+            </div>
+            <div class="text-xs text-white/60 mt-2">
+              <p>⚠️ Zonas a evitar de noche: Soho (norte), Brixton, Peckham, Hackney central, Tottenham.</p>
+            </div>
+          </div>
+        </div>
+        <div class="h-[420px] rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-gray-200 relative">
+          <div id="map" class="h-full w-full relative z-10"></div>
+          <div id="mapLoader" class="absolute inset-0 z-20 flex items-center justify-center bg-gray-200">
+            <div class="text-gray-500 text-sm">Cargando mapa...</div>
+          </div>
+          <div id="routeInfo" class="absolute bottom-4 left-4 z-30 bg-white/95 p-3 rounded-xl shadow-lg text-sm hidden">
+            <div class="font-semibold text-gray-800">Ruta calculada</div>
+            <div id="routeDistance" class="text-gray-600"></div>
+            <div id="routeDuration" class="text-gray-600"></div>
+            <div id="routeWarnings" class="text-amber-700 mt-1"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Información Práctica -->
+<section id="info" class="scroll-mt-32 pb-20">
+  <h2 class="display text-4xl font-bold mb-6">Información Práctica</h2>
+  <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div class="p-6 rounded-3xl bg-white border border-black/10 shadow-sm hover:shadow-md transition">
+      <div class="text-3xl">🌦️</div>
+      <h3 class="font-semibold mt-3">Clima</h3>
+      <p class="text-sm text-gray-600 mt-1">Templado oceánico. Veranos suaves 18-25°C, inviernos 2-8°C. Lluvia repartida todo el año. Lleva siempre un impermeable ligero.</p>
+    </div>
+    <div class="p-6 rounded-3xl bg-white border border-black/10 shadow-sm hover:shadow-md transition">
+      <div class="text-3xl">🔌</div>
+      <h3 class="font-semibold mt-3">Enchufes</h3>
+      <p class="text-sm text-gray-600 mt-1">Tipo G, 230V. Necesitarás adaptador si viajas desde España/Europa continental.</p>
+    </div>
+    <div class="p-6 rounded-3xl bg-white border border-black/10 shadow-sm hover:shadow-md transition">
+      <div class="text-3xl">💷</div>
+      <h3 class="font-semibold mt-3">Moneda</h3>
+      <p class="text-sm text-gray-600 mt-1">Libra esterlina (GBP). Pago con tarjeta y móvil ampliamente aceptado, incluso en mercados. Cambia a € con el botón superior.</p>
+    </div>
+    <div class="p-6 rounded-3xl bg-white border border-black/10 shadow-sm hover:shadow-md transition">
+      <div class="text-3xl">🚦</div>
+      <h3 class="font-semibold mt-3">Movilidad</h3>
+      <p class="text-sm text-gray-600 mt-1">Tráfico intenso en centro. Zonas ULEZ y Congestion Charge. Mejor moverse en Tube, bus o bici Santander Cycles.</p>
+    </div>
+  </div>
+  <div class="mt-8 p-6 rounded-3xl bg-[#0B0B0C] text-white flex flex-col md:flex-row items-center justify-between gap-4">
+    <p class="text-white/80">¿Listo para planificar tu viaje a Londres 2026?</p>
+    <a href="#inicio" class="px-5 py-3 rounded-full bg-[var(--tube-red)] font-semibold">Volver al inicio</a>
+  </div>
+</section>
+
+</main>
+
+<footer class="border-t border-black/10 py-10 text-center text-sm text-gray-500">
+  Hecho con ♥ para viajeros curiosos • Londres 2026 • Diseño inspirado en el metro y la ciudad
+</footer>
+
+<script>
+const FX = { GBP:1, EUR:1.17 };
+let currency = localStorage.getItem('ldn_currency') || 'GBP';
+
+const data = {
+  alojamiento: [
+    {id:'a1', nombre:'The Westminster Townhouse', zona:'Westminster', tipo:'Alojamiento', precio:'alto', precioGBP:320, desc:'Elegancia victoriana a pasos del Big Ben. Ideal para primera visita.', img:'https://images.pexels.com/photos/30624840/pexels-photo-30624840.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.5007, lng:-0.1246},
+    {id:'a2', nombre:'Soho Boutique Stay', zona:'Soho', tipo:'Alojamiento', precio:'medio', precioGBP:180, desc:'Habitaciones compactas con diseño, en el corazón de la vida nocturna.', img:'https://images.pexels.com/photos/33372730/pexels-photo-33372730.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.513, lng:-0.131},
+    {id:'a3', nombre:'Shoreditch Loft', zona:'Shoreditch', tipo:'Alojamiento', precio:'medio', precioGBP:165, desc:'Ambiente industrial chic, street art y cafés de especialidad.', img:'https://images.pexels.com/photos/30624861/pexels-photo-30624861.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.524, lng:-0.078},
+    {id:'a4', nombre:'Kensington Gardens Hotel', zona:'Kensington', tipo:'Alojamiento', precio:'alto', precioGBP:295, desc:'Tranquilidad junto a Hyde Park y museos gratuitos.', img:'https://images.pexels.com/photos/30624834/pexels-photo-30624834.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.501, lng:-0.191}
+  ],
+  lugares: [
+    {id:'l1', nombre:'Big Ben & Parlamento', zona:'Westminster', tipo:'Cultura', desc:'Símbolo icónico de Londres a orillas del Támesis.', img:'https://images.pexels.com/photos/30624840/pexels-photo-30624840.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.5007, lng:-0.1246},
+    {id:'l2', nombre:'Tower Bridge', zona:'South Bank', tipo:'Cultura', desc:'Puente levadizo victoriano con pasarelas de cristal.', img:'https://images.pexels.com/photos/30624875/pexels-photo-30624875.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.5055, lng:-0.0754},
+    {id:'l3', nombre:'British Museum', zona:'Camden', tipo:'Cultura', desc:'Entrada gratuita. Momias, Rosetta Stone y civilizaciones del mundo.', img:'https://images.pexels.com/photos/30624830/pexels-photo-30624830.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.5194, lng:-0.127},
+    {id:'l4', nombre:'London Eye', zona:'South Bank', tipo:'Ocio', desc:'Vistas panorámicas de 360° de la ciudad.', img:'https://images.pexels.com/photos/30624832/pexels-photo-30624832.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.5033, lng:-0.1195},
+    {id:'l5', nombre:'Buckingham Palace', zona:'Westminster', tipo:'Cultura', desc:'Residencia oficial. Cambio de guardia a las 11:00.', img:'https://images.pexels.com/photos/30624873/pexels-photo-30624873.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.5014, lng:-0.1419},
+    {id:'l6', nombre:'Tate Modern', zona:'South Bank', tipo:'Cultura', desc:'Arte contemporáneo en antigua central eléctrica. Gratis.', img:'https://images.pexels.com/photos/30624862/pexels-photo-30624862.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.5076, lng:-0.0994}
+  ],
+  gastronomia: [
+    {id:'g1', nombre:'Pub Tradicional', zona:'Westminster', tipo:'Gastronomía', precio:'medio', precioGBP:25, desc:'Fish & chips, pie y pinta de ale en ambiente histórico.', img:'https://images.pexels.com/photos/31533630/pexels-photo-31533630.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.503, lng:-0.127},
+    {id:'g2', nombre:'Borough Market', zona:'South Bank', tipo:'Gastronomía', precio:'medio', precioGBP:18, desc:'Mercado de comida callejera con productos artesanos de todo el mundo.', img:'https://images.pexels.com/photos/24589254/pexels-photo-24589254.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.5055, lng:-0.091},
+    {id:'g3', nombre:'Alta Cocina India', zona:'Soho', tipo:'Gastronomía', precio:'alto', precioGBP:85, desc:'Menús degustación con estrella Michelin y especias contemporáneas.', img:'https://images.pexels.com/photos/31131430/pexels-photo-31131430.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.512, lng:-0.132},
+    {id:'g4', nombre:'Brick Lane Bagels', zona:'Shoreditch', tipo:'Gastronomía', precio:'bajo', precioGBP:6, desc:'Bagels 24h, institución del East End.', img:'https://images.pexels.com/photos/9668165/pexels-photo-9668165.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.520, lng:-0.071}
+  ],
+  ocio: [
+    {id:'o1', nombre:'West End Theatre', zona:'Soho', tipo:'Ocio', desc:'Musicales y obras de primer nivel. Reserva con antelación.', img:'https://images.pexels.com/photos/33372730/pexels-photo-33372730.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.511, lng:-0.128},
+    {id:'o2', nombre:'Oxford Street', zona:'Soho', tipo:'Compras', desc:'Milla comercial con grandes almacenes y flagship stores.', img:'https://images.pexels.com/photos/9663094/pexels-photo-9663094.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.515, lng:-0.141},
+    {id:'o3', nombre:'Hyde Park', zona:'Kensington', tipo:'Naturaleza', desc:'Parque real ideal para picnic, botes y conciertos.', img:'https://images.pexels.com/photos/33352081/pexels-photo-33352081.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.5073, lng:-0.1657},
+    {id:'o4', nombre:'Soho Nightlife', zona:'Soho', tipo:'Ocio', desc:'Bares de cócteles, clubs y jazz hasta el amanecer.', img:'https://images.pexels.com/photos/34414810/pexels-photo-34414810.jpeg?auto=compress&cs=tinysrgb&fit=crop&h=627&w=1200', lat:51.513, lng:-0.134}
+  ]
+};
+
+function formatPrice(gbp){
+  if(!gbp && gbp!==0) return '';
+  const val = currency==='EUR' ? gbp*FX.EUR : gbp;
+  return new Intl.NumberFormat('es-ES',{style:'currency',currency}).format(val);
+}
+function priceBadge(item){
+  if(item.precioGBP!==undefined) return `<span class="absolute top-3 right-3 text-xs bg-white/95 px-2 py-1 rounded-full font-semibold shadow">${formatPrice(item.precioGBP)}</span>`;
+  const map={alto:'£££',medio:'££',bajo:'£'};
+  return `<span class="absolute top-3 right-3 text-xs bg-white/90 px-2 py-1 rounded-full font-semibold">${map[item.precio]||''}</span>`;
+}
+
+const TRACK_KEY = 'ldn_tracker_v2';
+let tracker = {};
+let allItems = [];
+
+function loadTracker(){
+  try {
+    const raw = localStorage.getItem(TRACK_KEY);
+    tracker = raw ? JSON.parse(raw) : {};
+    if(typeof tracker !== 'object' || tracker === null) tracker = {};
+  } catch(e){ tracker = {}; }
+}
+function saveTracker(){
+  try { localStorage.setItem(TRACK_KEY, JSON.stringify(tracker)); } catch(e){}
+  updateStats();
+}
+loadTracker();
+
+function toast(msg, type='ok'){
+  const el = document.createElement('div');
+  el.className = `toast px-4 py-3 rounded-2xl text-sm font-medium shadow-lg border ${type==='ok'?'bg-white border-black/10 text-gray-900':'bg-red-50 border-red-200 text-red-800'}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=> el.remove(), 3000);
+}
+
+function updateStats(){
+  const ids = Object.keys(tracker);
+  const total = ids.length;
+  const visited = ids.filter(id=>tracker[id].visited).length;
+  document.getElementById('progressCount').textContent = `${visited}/${total}`;
+  document.getElementById('progressBar').style.width = total ? `${(visited/total)*100}%` : '0%';
+  const ratings = ids.map(id=>tracker[id].rating).filter(r=>r>0);
+  document.getElementById('avgRating').textContent = ratings.length ? `${(ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1)} ★` : '-';
+  document.getElementById('favCount').textContent = ids.filter(id=>tracker[id].fav).length;
+}
+
+function updateCardButton(id, inTrack){
+  document.querySelectorAll(`.addTrack[data-id="${id}"]`).forEach(btn=>{
+    if(inTrack){
+      btn.textContent = btn.textContent.includes('Añadir') ? 'Añadido ✓' : '✓';
+      btn.disabled = true;
+      btn.classList.add('opacity-70','cursor-not-allowed','bg-gray-100','text-gray-500');
+      btn.classList.remove('bg-gray-900','text-white','hover:opacity-90');
+    } else {
+      const isFull = btn.textContent.includes('Añadir') || btn.textContent.includes('viaje');
+      btn.textContent = isFull ? (btn.closest('#gastroGrid') ? 'Añadir al viaje' : '+ Mi viaje') : '+';
+      btn.disabled = false;
+      btn.classList.remove('opacity-70','cursor-not-allowed','bg-gray-100','text-gray-500');
+      btn.classList.add('bg-gray-900','text-white');
+    }
+  });
+}
+
+function updateTrackerItem(id){
+  const t = tracker[id];
+  const item = allItems.find(i=>i.id===id);
+  if(!item) return;
+  const row = document.querySelector(`.track-row[data-id="${id}"]`);
+  if(!row) return;
+  const ratingContainer = row.querySelector('.rating-stars');
+  if(ratingContainer){
+    ratingContainer.innerHTML = [1,2,3,4,5].map(s=>`<button data-act="rate" data-id="${id}" data-val="${s}" class="text-xl ${s<=t.rating?'text-amber-400':'text-gray-300'}">★</button>`).join('');
+  }
+  const favBtn = row.querySelector('[data-act="fav"]');
+  if(favBtn){
+    favBtn.className = `text-sm px-2 py-1 rounded-full border ${t.fav?'bg-pink-50 border-pink-300 text-pink-700':'bg-gray-50'}`;
+    favBtn.textContent = t.fav ? '♥ Favorito' : '♡ Favorito';
+  }
+  const visitBox = row.querySelector('[data-act="visit"]');
+  if(visitBox) visitBox.checked = !!t.visited;
+  const noteField = row.querySelector('[data-act="note"]');
+  if(noteField && document.activeElement !== noteField) noteField.value = t.note || '';
+}
+
+function addToTracker(id){
+  if(!tracker[id]){
+    tracker[id]={visited:false,rating:0,note:'',fav:false,added:Date.now()};
+    saveTracker();
+    renderTrackerList();
+    updateCardButton(id, true);
+    const item = allItems.find(i=>i.id===id);
+    toast(`"${item?item.nombre:id}" añadido a tu viaje`);
+  }
+  document.getElementById('viaje')?.scrollIntoView({behavior:'smooth'});
+}
+
+function removeFromTracker(id){
+  if(tracker[id]){
+    delete tracker[id];
+    saveTracker();
+    renderTrackerList();
+    updateCardButton(id, false);
+    toast('Elemento eliminado', 'err');
+  }
+}
+
+function renderTrackerList(){
+  const container = document.getElementById('trackerList');
+  const noRes = document.getElementById('noResults');
+  const ids = Object.keys(tracker).filter(id=>tracker[id].added);
+  const items = allItems.filter(i=> ids.includes(i.id));
+  if(items.length===0){
+    container.innerHTML = '';
+    noRes.classList.remove('hidden');
+  } else {
+    noRes.classList.add('hidden');
+    container.innerHTML = items.map(it=>{
+      const t = tracker[it.id];
+      return `<div class="track-row fade-in p-4 rounded-2xl border bg-white flex gap-4 items-start" data-id="${it.id}">
+        <img src="${it.img}" class="w-20 h-20 rounded-xl object-cover bg-gray-100" alt="" loading="lazy">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <h4 class="font-bold truncate">${it.nombre}</h4>
+              <p class="text-xs text-gray-500 truncate">${it.zona||''} • ${it.tipo||'Alojamiento'}</p>
+            </div>
+            <label class="flex items-center gap-2 text-sm shrink-0"><input type="checkbox" data-act="visit" data-id="${it.id}" ${t.visited?'checked':''}> Visitado</label>
+          </div>
+          <div class="mt-2 flex flex-wrap items-center gap-3">
+            <div class="rating-stars flex items-center gap-1">${[1,2,3,4,5].map(s=>`<button data-act="rate" data-id="${it.id}" data-val="${s}" class="text-xl ${s<=t.rating?'text-amber-400':'text-gray-300'}">★</button>`).join('')}</div>
+            <button data-act="fav" data-id="${it.id}" class="text-sm px-2 py-1 rounded-full border ${t.fav?'bg-pink-50 border-pink-300 text-pink-700':'bg-gray-50'}">${t.fav?'♥ Favorito':'♡ Favorito'}</button>
+            <button data-act="del" data-id="${it.id}" class="text-xs text-red-600 hover:underline ml-auto">Eliminar</button>
+          </div>
+          <textarea data-act="note" data-id="${it.id}" placeholder="Notas personales..." class="note-field mt-2 w-full text-sm border rounded-xl p-2 focus:outline-none focus:ring-2 focus:ring-black/10 resize-none" rows="2">${t.note||''}</textarea>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  updateStats();
+}
+
+function cardAlojamiento(item){
+  const inTrack = !!tracker[item.id];
+  return `<article class="group rounded-3xl overflow-hidden border border-black/10 bg-white hover:shadow-xl transition" data-zona="${item.zona}" data-presupuesto="${item.precio}" data-tipo="${item.tipo}" data-id="${item.id}">
+    <div class="relative h-44 overflow-hidden">
+      <img src="${item.img}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="${item.nombre}" loading="lazy" onerror="this.style.display='none'">
+      <span class="absolute top-3 left-3 text-xs bg-black/70 text-white px-2 py-1 rounded-full">${item.zona}</span>
+      ${priceBadge(item)}
+    </div>
+    <div class="p-5">
+      <h3 class="font-bold text-lg">${item.nombre}</h3>
+      <p class="text-sm text-gray-600 mt-1">${item.desc}</p>
+      <div class="mt-3 flex items-center justify-between gap-2">
+        <button class="escucharBtn inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--tube-blue)] hover:underline" aria-label="Escuchar descripción de ${item.nombre}"><svg width="16" height="16" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg> Escuchar</button>
+        <button class="addTrack text-xs font-semibold px-3 py-1 rounded-full ${inTrack?'bg-gray-100 text-gray-500 opacity-70 cursor-not-allowed':'bg-gray-900 text-white hover:opacity-90'}" data-id="${item.id}" ${inTrack?'disabled':''}>${inTrack?'Añadido ✓':'+ Mi viaje'}</button>
+      </div>
+    </div>
+  </article>`;
+}
+function cardLugar(item){
+  const inTrack = !!tracker[item.id];
+  return `<article class="group rounded-3xl overflow-hidden border border-black/10 bg-white hover:shadow-xl transition" data-zona="${item.zona}" data-tipo="${item.tipo}" data-id="${item.id}">
+    <div class="relative h-52 overflow-hidden">
+      <img src="${item.img}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="${item.nombre}" loading="lazy" onerror="this.style.display='none'">
+      <span class="absolute bottom-3 left-3 bg-[var(--tube-yellow)] text-black text-xs font-bold px-2 py-1 rounded">${item.tipo}</span>
+    </div>
+    <div class="p-5">
+      <h3 class="font-bold text-xl">${item.nombre}</h3>
+      <p class="text-sm text-gray-600 mt-1">${item.desc}</p>
+      <div class="mt-3 flex items-center justify-between">
+        <span class="tag text-xs px-2 py-1 rounded-full bg-gray-50">${item.zona}</span>
+        <div class="flex gap-2">
+          <button class="escucharBtn text-xs font-semibold text-[var(--tube-blue)]" aria-label="Escuchar descripción de ${item.nombre}">Escuchar</button>
+          <button class="addTrack text-xs font-semibold px-3 py-1 rounded-full ${inTrack?'bg-gray-100 text-gray-500 opacity-70 cursor-not-allowed':'bg-gray-900 text-white'}" data-id="${item.id}" ${inTrack?'disabled':''}>${inTrack?'✓':'+'}</button>
+        </div>
+      </div>
+    </div>
+  </article>`;
+}
+function cardGastro(item){
+  const inTrack = !!tracker[item.id];
+  return `<article class="p-0 rounded-3xl border border-black/10 bg-white overflow-hidden hover:shadow-lg transition" data-zona="${item.zona}" data-presupuesto="${item.precio}" data-tipo="${item.tipo}" data-id="${item.id}">
+    <img src="${item.img}" class="h-32 w-full object-cover" alt="${item.nombre}" loading="lazy" onerror="this.style.display='none'">
+    <div class="p-5">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0">
+          <h3 class="font-bold">${item.nombre}</h3>
+          <p class="text-sm text-gray-600 mt-1">${item.desc}</p>
+          <div class="mt-2 flex gap-2">
+            <span class="tag text-[11px] px-2 py-0.5 rounded-full">${item.zona}</span>
+            <span class="tag text-[11px] px-2 py-0.5 rounded-full">${formatPrice(item.precioGBP)|| (item.precio==='alto'?'£££':item.precio==='medio'?'££':'£')}</span>
+          </div>
+        </div>
+        <button class="escucharBtn text-xs font-semibold text-[var(--tube-blue)] shrink-0" aria-label="Escuchar descripción de ${item.nombre}">Escuchar</button>
+      </div>
+      <button class="addTrack mt-3 text-xs font-semibold px-3 py-1 rounded-full ${inTrack?'bg-gray-100 text-gray-500 opacity-70 cursor-not-allowed':'bg-gray-900 text-white hover:opacity-90'}" data-id="${item.id}" ${inTrack?'disabled':''}>${inTrack?'Añadido ✓':'Añadir al viaje'}</button>
+    </div>
+  </article>`;
+}
+function cardOcio(item){
+  const inTrack = !!tracker[item.id];
+  return `<article class="p-0 rounded-3xl border border-black/10 bg-white overflow-hidden hover:shadow-lg transition" data-zona="${item.zona}" data-tipo="${item.tipo}" data-id="${item.id}">
+    <img src="${item.img}" class="h-32 w-full object-cover" alt="${item.nombre}" loading="lazy" onerror="this.style.display='none'">
+    <div class="p-5">
+      <h3 class="font-bold text-lg">${item.nombre}</h3>
+      <p class="text-sm text-gray-600 mt-1">${item.desc}</p>
+      <div class="mt-4 flex items-center justify-between">
+        <span class="text-xs uppercase tracking-wide text-gray-500">${item.zona} • ${item.tipo}</span>
+        <div class="flex gap-2">
+          <button class="escucharBtn text-xs font-semibold text-[var(--tube-blue)]" aria-label="Escuchar descripción de ${item.nombre}">Escuchar</button>
+          <button class="addTrack text-xs font-semibold px-3 py-1 rounded-full ${inTrack?'bg-gray-100 text-gray-500 opacity-70 cursor-not-allowed':'bg-gray-900 text-white'}" data-id="${item.id}" ${inTrack?'disabled':''}>${inTrack?'✓':'+'}</button>
+        </div>
+      </div>
+    </div>
+  </article>`;
+}
+
+function renderAll(){
+  document.getElementById('alojamientoGrid').innerHTML = data.alojamiento.map(cardAlojamiento).join('');
+  document.getElementById('lugaresGrid').innerHTML = data.lugares.map(cardLugar).join('');
+  document.getElementById('gastroGrid').innerHTML = data.gastronomia.map(cardGastro).join('');
+  document.getElementById('ocioGrid').innerHTML = data.ocio.map(cardOcio).join('');
+  document.getElementById('currencyLabel').textContent = currency==='EUR'?'€':'£';
+}
+
+// Mobile menu
+const mobileMenu = document.getElementById('mobileMenu');
+document.getElementById('menuBtn').onclick = ()=> mobileMenu.classList.toggle('hidden');
+document.querySelectorAll('.mobile-link').forEach(a=> a.addEventListener('click', ()=> mobileMenu.classList.add('hidden')));
+
+// Currency toggle
+document.getElementById('currencyToggle').onclick = ()=>{
+  currency = currency==='GBP'?'EUR':'GBP';
+  localStorage.setItem('ldn_currency',currency);
+  renderAll();
+  renderTrackerList();
+};
+
+// Escuchar
+function speak(text){
+  if(!text || text.trim() === 'undefined. undefined') return;
+  if('speechSynthesis' in window){
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang='es-ES';
+    u.rate = 0.9;
+    u.pitch = 1;
+    speechSynthesis.speak(u);
+  } else { 
+    toast('Texto a voz no disponible en este navegador', 'err');
+  }
+}
+document.body.addEventListener('click', e=>{
+  const speakBtn = e.target.closest('.escucharBtn');
+  if(speakBtn){
+    e.preventDefault();
+    e.stopPropagation();
+    const card = speakBtn.closest('article');
+    if(!card) return;
+    const title = card.querySelector('h3')?.textContent?.trim() || '';
+    const desc = card.querySelector('p')?.textContent?.trim() || '';
+    const txt = title ? `${title}. ${desc}` : desc;
+    speak(txt);
+    return;
+  }
+  const addBtn = e.target.closest('.addTrack');
+  if(addBtn && !addBtn.disabled){
+    e.preventDefault();
+    e.stopPropagation();
+    const id = addBtn.dataset.id;
+    if(id) addToTracker(id);
+  }
+});
+
+// Filters
+const searchInput = document.getElementById('searchInput');
+const filterZona = document.getElementById('filterZona');
+const filterPresupuesto = document.getElementById('filterPresupuesto');
+const filterTipo = document.getElementById('filterTipo');
+
+function applyFilters(){
+  const q = (searchInput.value || '').toLowerCase();
+  const zona = filterZona.value;
+  const pres = filterPresupuesto.value;
+  const tipo = filterTipo.value;
+  const noRes = document.getElementById('noResults');
+  let visibleCount = 0;
+  document.querySelectorAll('article[data-zona]').forEach(el=>{
+    const matchQ = !q || el.textContent.toLowerCase().includes(q);
+    const matchZona = !zona || el.dataset.zona === zona;
+    const matchPres = !pres || el.dataset.presupuesto === pres;
+    const matchTipo = !tipo || el.dataset.tipo === tipo;
+    const show = matchQ && matchZona && matchPres && matchTipo;
+    if(show){ el.style.display=''; visibleCount++; }
+    else { el.style.display='none'; }
+  });
+  if(noRes) noRes.classList.toggle('hidden', visibleCount > 0);
+}
+const debounce = (fn,ms) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; };
+searchInput.addEventListener('input', debounce(applyFilters, 180));
+[filterZona, filterPresupuesto, filterTipo].forEach(el=> el.addEventListener('change', applyFilters));
+
+// Map
+let map;
+let currentCategory = 'todos';
+let userMarker = null;
+let routingControl = null;
+let mapReadyForRoute = false;
+const poiMarkers = [];
+const poiGroup = L.layerGroup();
+
+const categoryColors = {
+  Alojamiento: '#0039A6',
+  Cultura: '#E30613',
+  Gastronomía: '#FFD300',
+  Ocio: '#00A86B',
+  Compras: '#9C27B0',
+  Naturaleza: '#4CAF50'
+};
+
+const unsafeAreas = [
+  { name: 'Soho Norte', bounds: [[51.516, -0.135], [51.518, -0.128]], nightOnly: true },
+  { name: 'Brixton', bounds: [[51.462, -0.115], [51.472, -0.100]] },
+  { name: 'Peckham', bounds: [[51.470, -0.080], [51.485, -0.060]] },
+  { name: 'Hackney Central', bounds: [[51.545, -0.075], [51.555, -0.055]] },
+  { name: 'Tottenham', bounds: [[51.590, -0.090], [51.600, -0.060]] }
+];
+
+function resetRouteInfo(){
+  document.getElementById('routeDistance').textContent = '';
+  document.getElementById('routeDuration').textContent = '';
+  document.getElementById('routeWarnings').textContent = '';
+  document.getElementById('routeInfo').classList.add('hidden');
+}
+
+function clearRoute(){
+  if(routingControl){
+    map.removeControl(routingControl);
+    routingControl = null;
+  }
+  mapReadyForRoute = false;
+  resetRouteInfo();
+  toast('Ruta eliminada');
+}
+
+function checkRouteSafety(coordinates) {
+  const warnings = [];
+  const now = new Date();
+  const hours = now.getHours();
+  const isNight = hours >= 20 || hours < 6;
+  for (const coord of coordinates) {
+    const lat = coord.lat;
+    const lng = coord.lng;
+    for (const area of unsafeAreas) {
+      if (area.nightOnly && !isNight) continue;
+      const [sw, ne] = area.bounds;
+      if (lat >= sw[0] && lat <= ne[0] && lng >= sw[1] && lng <= ne[1]) {
+        warnings.push(`Evita ${area.name}${area.nightOnly ? ' de noche' : ''}`);
+      }
+    }
+  }
+  return [...new Set(warnings)];
+}
+
+function setUserLocation(latlng, center = false){
+  if(!map) return;
+  if(userMarker) map.removeLayer(userMarker);
+  userMarker = L.circleMarker(latlng, {
+    radius: 10,
+    fillColor: '#3b82f6',
+    color: '#fff',
+    weight: 3,
+    opacity: 1,
+    fillOpacity: 0.85
+  }).addTo(map).bindPopup('Tu ubicación actual');
+  if(center) map.setView(latlng, 14);
+}
+
+function requestLocation(callback, center = false){
+  if(!navigator.geolocation){
+    toast('Geolocalización no disponible', 'err');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (position)=>{
+      const latlng = L.latLng(position.coords.latitude, position.coords.longitude);
+      setUserLocation(latlng, center);
+      callback(latlng);
+    },
+    (error)=> toast('No se pudo obtener tu ubicación: ' + error.message, 'err'),
+    { enableHighAccuracy:true, timeout:10000, maximumAge:60000 }
+  );
+}
+
+function calculateRoute(startLatLng, endLatLng){
+  if (!map || typeof L.Routing === 'undefined') {
+    toast('Motor de rutas no disponible', 'err');
+    return;
+  }
+  if (routingControl) {
+    map.removeControl(routingControl);
+    routingControl = null;
+  }
+  resetRouteInfo();
+
+  routingControl = L.Routing.control({
+    waypoints: [startLatLng, endLatLng],
+    routeWhileDragging: false,
+    show: false,
+    addWaypoints: false,
+    fitSelectedRoutes: true,
+    draggableWaypoints: false,
+    showAlternatives: false,
+    lineOptions: {
+      addWaypoints: false,
+      styles: [
+        {color: '#22c55e', opacity: 0.9, weight: 6},
+        {color: '#ffffff', opacity: 0.45, weight: 2}
+      ]
+    },
+    createMarker: () => null,
+    collapsible: true,
+    router: L.Routing.osrmv1({
+      serviceUrl: 'https://router.project-osrm.org/route/v1',
+      profile: 'foot'
+    })
+  }).addTo(map);
+
+  routingControl.on('routesfound', (e) => {
+    const route = e.routes?.[0];
+    if(!route) return;
+    const distanceKm = (route.summary.totalDistance / 1000).toFixed(2);
+    const durationMin = Math.round(route.summary.totalTime / 60);
+    document.getElementById('routeDistance').textContent = `Distancia: ${distanceKm} km`;
+    document.getElementById('routeDuration').textContent = `Duración: ${durationMin} min`;
+    const warnings = checkRouteSafety(route.coordinates || []);
+    document.getElementById('routeWarnings').innerHTML = warnings.length
+      ? '<strong>⚠️ Advertencia:</strong> ' + warnings.join(', ')
+      : 'Ruta segura por calles';
+    document.getElementById('routeInfo').classList.remove('hidden');
+  });
+
+  routingControl.on('routingerror', () => {
+    resetRouteInfo();
+    toast('No se pudo calcular la ruta por calles', 'err');
+  });
+}
+
+function updateCategoryButtons(category){
+  document.querySelectorAll('.map-category-btn').forEach(btn => {
+    const isActive = btn.dataset.category === category;
+    btn.classList.toggle('active', isActive);
+  });
+}
+
+function filterMarkersByCategory(category) {
+  currentCategory = category;
+  updateCategoryButtons(category);
+  poiMarkers.forEach(({marker, category: markerCategory}) => {
+    const visible = category === 'todos' || markerCategory === category;
+    marker.setStyle({ opacity: visible ? 1 : 0.08, fillOpacity: visible ? 0.9 : 0.05 });
+    if (visible) marker.bringToFront();
+  });
+}
+
+function buildMapMarkers(){
+  poiGroup.clearLayers();
+  poiMarkers.length = 0;
+  allItems.forEach(it => {
+    if(!it.lat || !it.lng) return;
+    const cat = it.tipo || 'Alojamiento';
+    const color = categoryColors[cat] || categoryColors.Alojamiento;
+    const marker = L.circleMarker([it.lat, it.lng], {
+      radius: 8,
+      fillColor: color,
+      color: '#fff',
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.9
+    });
+    const popupContent = `<b>${it.nombre}</b><br><span style="font-size:12px;color:#555">${it.zona || ''} (${cat})</span><br><button data-map-add="${it.id}" style="margin-top:6px;padding:5px 10px;background:#111;color:#fff;border:none;border-radius:999px;font-size:12px;cursor:pointer">+ Mi viaje</button>`;
+    marker.bindPopup(popupContent);
+    marker.on('popupopen', () => {
+      const btn = document.querySelector(`[data-map-add="${it.id}"]`);
+      if(btn) btn.onclick = () => { addToTracker(it.id); map.closePopup(); };
+    });
+    marker.on('click', () => {
+      requestLocation((latlng) => calculateRoute(latlng, L.latLng(it.lat, it.lng)));
+    });
+    marker.addTo(poiGroup);
+    poiMarkers.push({ marker, category: cat, item: it });
+  });
+  poiGroup.addTo(map);
+}
+
+function fitMapToVisible(){
+  const visible = poiMarkers
+    .filter(({marker}) => marker.options.opacity !== 0.08)
+    .map(({marker}) => marker.getLatLng());
+  if(!visible.length || !map) return;
+  map.fitBounds(L.latLngBounds(visible), { padding: [28, 28] });
+}
+
+function initMap(){
+  try {
+    if(typeof L === 'undefined') return;
+    map = L.map('map', { scrollWheelZoom: false, zoomControl: true }).setView([51.5072, -0.1276], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    buildMapMarkers();
+    filterMarkersByCategory(currentCategory);
+
+    document.getElementById('fitMap').onclick = fitMapToVisible;
+    document.getElementById('locateMe').onclick = () => requestLocation(() => {}, true);
+    document.getElementById('routeWalking').onclick = () => {
+      requestLocation(() => {
+        mapReadyForRoute = true;
+        toast('Ubicación detectada. Haz clic en un marcador para calcular ruta real por calles.');
+      }, true);
+    };
+    document.getElementById('clearRoute').onclick = clearRoute;
+
+    document.querySelectorAll('.map-category-btn').forEach(btn => {
+      btn.onclick = () => filterMarkersByCategory(btn.dataset.category);
+    });
+
+    document.getElementById('mapLoader').style.display = 'none';
+    map.invalidateSize();
+  } catch(err){
+    document.getElementById('mapLoader').innerHTML = '<div class="text-red-600 text-sm">Error cargando mapa</div>';
+  }
+}
+
+const mapObserver = new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    if(entry.isIntersecting){
+      setTimeout(()=>{
+        if(!map) initMap();
+        else map.invalidateSize();
+      }, 200);
+    }
+  });
+}, {threshold:0.1});
+const mapSection = document.getElementById('mapa');
+if(mapSection) mapObserver.observe(mapSection);
+
+// Tracker
+document.getElementById('trackerList').addEventListener('click', e=>{
+  const btn = e.target.closest('[data-act]');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  const act = btn.dataset.act;
+  if(act==='visit'){ tracker[id].visited = btn.checked; saveTracker(); }
+  else if(act==='rate'){ tracker[id].rating = +btn.dataset.val; updateTrackerItem(id); updateStats(); }
+  else if(act==='fav'){ tracker[id].fav = !tracker[id].fav; updateTrackerItem(id); updateStats(); toast(tracker[id].fav ? 'Añadido a favoritos' : 'Quitado de favoritos'); }
+  else if(act==='del'){ removeFromTracker(id); }
+});
+
+document.getElementById('trackerList').addEventListener('input', e=>{
+  const el = e.target.closest('[data-act="note"]');
+  if(el){ tracker[el.dataset.id].note = el.value; try{ localStorage.setItem(TRACK_KEY, JSON.stringify(tracker)); }catch(e){} }
+});
+
+document.getElementById('clearBtn').onclick = ()=>{
+  if(confirm('¿Borrar todo tu seguimiento?')){
+    const ids = Object.keys(tracker);
+    tracker = {};
+    saveTracker();
+    renderTrackerList();
+    ids.forEach(id => updateCardButton(id, false));
+    toast('Datos borrados','err');
+  }
+};
+document.getElementById('exportBtn').onclick = ()=>{
+  const blob = new Blob([JSON.stringify(tracker,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mi-viaje-londres.json';
+  a.click();
+};
+
+window.addToTracker = addToTracker;
+
+allItems = [...data.alojamiento,...data.lugares,...data.gastronomia,...data.ocio];
+renderAll();
+renderTrackerList();
+updateStats();
+</script>
+</body>
+</html>
